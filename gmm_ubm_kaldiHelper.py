@@ -7,7 +7,7 @@ import shlex
 
 class gmm_ubm_kaldiHelper(object):
 
-    def __init__(self, pre_model_dir="pre-models", audio_dir=None, mfcc_dir=None, log_dir=None, score_dir=None):
+    def __init__(self, pre_model_dir="./kaldi_models/ivector_models", audio_dir=None, mfcc_dir=None, log_dir=None, score_dir=None):
 
         self.pre_model_dir = os.path.abspath(pre_model_dir)
         self.conf_dir = os.path.join(self.pre_model_dir, "conf")

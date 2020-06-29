@@ -1,5 +1,6 @@
 
 from ivector_PLDA_kaldiHelper import ivector_PLDA_kaldiHelper
+from xvector_PLDA_kaldiHelper import xvector_PLDA_kaldiHelper
 from gmm_ubm_kaldiHelper import gmm_ubm_kaldiHelper
 import os
 import numpy as np
@@ -9,6 +10,8 @@ import pickle
 import shutil
 
 """
+Note: Before executing this script, clean tmpfs/build_spk_models/ firstly.
+
 This file generates speaker unique model for each speaker in the enrollment-set.
 Each speaker model is a list dumped by pickle. The list contains the following items:
 (1) spk id
@@ -27,6 +30,11 @@ remarks:
 data type: float
 remarks:
 """
+
+# 1 - ivector
+# 2 - gmm-ubm
+# 3 - xvector
+type = 1
 
 def set_threshold(score_target, score_untarget):
 
@@ -60,50 +68,22 @@ def set_threshold(score_target, score_untarget):
 
 ''' adjustable setting
 '''
-n_jobs = 28
+n_jobs = 48
 debug = True # whether display log information from kaldi on terminal
 
-enroll_dir = "./data/enrollment-set" # voice data for enrollment
+# enroll_dir = "./data/enrollment-set" # voice data for enrollment
+enroll_dir = "./data/tianqiong_enrollment"
 z_norm_dir = "./data/z-norm-set" # voice data for z norm
 test_dir = "./data/test-set" # used for setting threshold
 illegal_dir = "./data/illegal-set" # used for setting threshold
-pre_model_dir = "./pre-models"
-model_dir = "./model"
+pre_model_dir = "./kaldi_models/ivector_models"
+xvector_model_dir = "./kaldi_models/xvector_models"
+model_dir = "./tmpfs/model"
 if not os.path.exists(model_dir):
     os.makedirs(model_dir)
 
-audio_dir = os.path.abspath("./audio-build-model-iv")
-if not os.path.exists(audio_dir):
-    os.makedirs(audio_dir)
-mfcc_dir = os.path.abspath("./mfcc-build-model-iv")
-if not os.path.exists(mfcc_dir):
-    os.makedirs(mfcc_dir)
-log_dir = os.path.abspath("./log-build-model-iv")
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-ivector_dir = os.path.abspath("./ivector-build-model-iv")
-if not os.path.exists(ivector_dir):
-    os.makedirs(ivector_dir)
-
-audio_dir_gmm = os.path.abspath("./audio-build-model-gmm")
-if not os.path.exists(audio_dir_gmm):
-    os.makedirs(audio_dir_gmm)
-mfcc_dir_gmm = os.path.abspath("./mfcc-build-model-gmm")
-if not os.path.exists(mfcc_dir_gmm):
-    os.makedirs(mfcc_dir_gmm)
-log_dir_gmm = os.path.abspath("./log-build-model-gmm")
-if not os.path.exists(log_dir_gmm):
-    os.makedirs(log_dir_gmm)
-score_dir = os.path.abspath("./score-build-model-gmm")
-if not os.path.exists(score_dir):
-    os.makedirs(score_dir)
-
-trials = ivector_dir + "/trials"
-scores_file = ivector_dir + "/scores"
-ivector_scp = ivector_dir + "/ivector.scp"
-feats_scp = audio_dir + "/feats.scp"
-vad_scp = audio_dir + "/vad.scp"
-
+''' Prepare data for building...
+'''
 audio_iter = os.listdir(enroll_dir)
 enroll_utt_id = []
 enroll_spk_id = []
@@ -115,18 +95,6 @@ for i, audio_name in enumerate(audio_iter):
     enroll_utt_path.append(path)
     enroll_utt_id.append(utt_id)
     enroll_spk_id.append(spk_id)
-
-audio_iter = os.listdir(z_norm_dir)
-z_norm_utt_id = []
-z_norm_spk_id = []
-z_norm_utt_path = []
-for i, audio_name in enumerate(audio_iter):
-    utt_id = audio_name.split(".")[0]
-    spk_id = utt_id.split("-")[0]
-    path = os.path.join(z_norm_dir, audio_name)
-    z_norm_utt_path.append(path)
-    z_norm_utt_id.append(utt_id)
-    z_norm_spk_id.append(spk_id)
 
 audio_iter = os.listdir(z_norm_dir)
 z_norm_utt_id = []
@@ -172,202 +140,251 @@ audio_path_list = (enroll_utt_path + z_norm_utt_path + test_utt_path + illegal_u
 spk_id_list = (enroll_spk_id + z_norm_spk_id + test_spk_id + illegal_spk_id)
 utt_id_list = (enroll_utt_id + z_norm_utt_id + test_utt_id + illegal_utt_id)
 
-''' step 1: generate ivector identity (stored in ivector_dir) and corresponding speaker model (stored as model/XX.iv)
-'''
-print("----- step 1: generate ivector identity and corresponding speaker model, setting threshold -----")
 
-iv_helper = ivector_PLDA_kaldiHelper(audio_dir=audio_dir, mfcc_dir=mfcc_dir, log_dir=log_dir, ivector_dir=ivector_dir)
+if type == 1:
+    #
+    audio_dir = os.path.abspath("tmpfs/build_spk_models/iv-audio-build-model")
+    if os.path.exists(audio_dir):
+        shutil.rmtree(audio_dir)
+    os.makedirs(audio_dir)
+    #
+    mfcc_dir = os.path.abspath("tmpfs/build_spk_models/iv-mfcc-build-model")
+    if os.path.exists(mfcc_dir):
+        shutil.rmtree(mfcc_dir)
+    os.makedirs(mfcc_dir)
+    #
+    log_dir = os.path.abspath("tmpfs/build_spk_models/iv-log-build-model")
+    if os.path.exists(log_dir):
+        shutil.rmtree(log_dir)
+    os.makedirs(log_dir)
+    #
+    ivector_dir = os.path.abspath("tmpfs/build_spk_models/iv-ivector-build-model")
+    if os.path.exists(ivector_dir):
+        shutil.rmtree(ivector_dir)
+    os.makedirs(ivector_dir)
 
-print("--- extracting and scoring ---")
-test_utt_id_scoring = z_norm_utt_id + test_utt_id + illegal_utt_id
-iv_helper.score_existing(audio_path_list, enroll_utt_id, spk_id_list=spk_id_list, 
-                         utt_id_list=utt_id_list, test_utt_id=test_utt_id_scoring, 
-                         n_jobs=n_jobs, flag=1, debug=debug)
-
-print("--- extracting and scoring done---")
-
-print("--- resolve score and obtain z norm mean and std value, and setting threshold ---")
-
-scores_mat = np.loadtxt(scores_file, dtype=str)
-train_utt_id = scores_mat[:, 0]
-test_utt_id_scoring = scores_mat[:, 1]
-score = scores_mat[:, 2].astype(np.float64)
-train_spk_id = np.array([utt_id.split("-")[0] for utt_id in train_utt_id])
-test_spk_id_scoring = np.array([utt_id.split("-")[0] for utt_id in test_utt_id_scoring])
-
-z_norm_index = []
-for i, utt_id in enumerate(test_utt_id_scoring):
-    if utt_id in z_norm_utt_id:
-        z_norm_index.append(i)
-target_index = np.argwhere(train_spk_id == test_spk_id_scoring).flatten()
-untarget_index = np.setdiff1d(np.argwhere(train_spk_id != test_spk_id_scoring).flatten(), np.array(z_norm_index))
-
-z_norm_means = np.zeros(len(enroll_utt_id), dtype=np.float64)
-z_norm_stds = np.zeros(len(enroll_utt_id), dtype=np.float64)
-score_target = []
-score_untarget =[]
-
-for i, id in enumerate(enroll_spk_id):
-
-     index = np.argwhere(train_spk_id[z_norm_index] == id).flatten()
-     mean = np.mean((score[z_norm_index])[index])
-     std = np.std((score[z_norm_index])[index])
-     z_norm_means[i] = mean
-     z_norm_stds[i] = std
-
-     index = np.argwhere(train_spk_id[target_index] == id).flatten()
-     score_target += list(((score[target_index])[index] - mean) / std)
-
-     index = np.argwhere(train_spk_id[untarget_index] == id).flatten()
-     score_untarget += list(((score[untarget_index])[index] - mean) / std)
-
-final_threshold, final_frr, final_far = set_threshold(score_target, score_untarget)
-
-print("-- threshold:%f, far:%f, frr:%f --" %(final_threshold, final_far, final_frr))
-
-print("--- resolve score and obtain z norm mean and std value, and setting threshold done ---")
-
-print("--- dump speaker unique model ---")
-
-for i, utt_id in enumerate(enroll_utt_id):
-
-    spk_id = enroll_spk_id[i]
-    z_norm_mean = z_norm_means[i]
-    z_norm_std = z_norm_stds[i]
-
-    ivectors_utt_location = np.loadtxt(ivector_scp, dtype=str)
-    ivectors_utt = ivectors_utt_location[:, 0]
-    ivectors_location = ivectors_utt_location[:, 1]
-    identity_location = os.path.abspath(ivectors_location[np.argwhere(ivectors_utt == utt_id).flatten()[0]]) # use absolute path
-
-    spk_unique_model = [spk_id, utt_id, identity_location, z_norm_mean, z_norm_std, final_threshold]
-    print(spk_unique_model),
-
-    with open(model_dir + "/" + spk_id + ".iv", "wb") as writer:
-        pickle.dump(spk_unique_model, writer, protocol=-1)
-
-print("--- dump speaker unique model done ---")
-
-print("----- step 1: generate ivector identity and corresponding speaker model, setting threshold done -----")
-
-
-
-''' step 2: generate gmm identity (stored as model/XX-identity.gmm) and corrsponding speaker model (stored as model/XX.gmm)
-'''
-print("----- step 2: generate gmm identity and corresponding speaker model, setting threshold -----")
-
-dubm = os.path.abspath(os.path.join(pre_model_dir, "final.dubm"))
-delta_opts_file = os.path.join(pre_model_dir, "delta_opts")
-with open(delta_opts_file, "r") as reader:
-    delta_opts = reader.read()[:-1]
-update_flags_str = "m" # only update the mean vectors of gmm
-
-print("--- obtaining gmm identity by updating ubm via MAP ---")
-tmp_spk_feats_scp = audio_dir + "/feats_spk.scp"
-tmp_spk_vad_scp = audio_dir + "/vad_spk.scp"
-tmp_spk_acc_file = audio_dir + "/gmm_map_acc.acc"
-
-feats_utt_location = np.loadtxt(feats_scp, dtype=str)
-feats_utt = feats_utt_location[:, 0]
-feats_location = feats_utt_location[:, 1]
-vad_utt_location = np.loadtxt(vad_scp, dtype=str)
-vad_utt = vad_utt_location[:, 0]
-vad_location = vad_utt_location[:, 1]
-
-for spk_id, utt_id in zip(enroll_spk_id, enroll_utt_id):
-
-    index = np.argwhere(feats_utt == utt_id).flatten()[0]
-    location = feats_location[index]
-    spk_feats_scp_content = utt_id + " " + location + "\n"
-    with open(tmp_spk_feats_scp, "w") as writer:
-        writer.write(spk_feats_scp_content)
+    trials = ivector_dir + "/trials"
+    scores_file = ivector_dir + "/scores"
+    ivector_scp = ivector_dir + "/ivector.scp"
     
-    index = np.argwhere(vad_utt == utt_id).flatten()[0]
-    location = vad_location[index]
-    spk_vad_scp_content = utt_id + " " + location +  "\n"
-    with open(tmp_spk_vad_scp, "w") as writer:
-        writer.write(spk_vad_scp_content)
-    
-    add_deltas = ("add-deltas " + delta_opts + " scp:" + tmp_spk_feats_scp + " ark:- |")
-    apply_cmvn = "apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=300 ark:- ark:- |"
-    select_voiced_frame = ("select-voiced-frames ark:- scp,s,cs:"  + tmp_spk_vad_scp + " ark:- |")
-    feats = ("ark,s,cs:" + add_deltas + " " + apply_cmvn + " " + select_voiced_frame)
+elif type == 2:
+    audio_dir = os.path.abspath("tmpfs/build_spk_models/iv-audio-build-model")
+    if not os.path.exists(audio_dir):
+        print('ERROR: Cannot find ', audio_dir)
+        print('Execute type 1 before type 2.')
+        exit(-1)
+    feats_scp = audio_dir + "/feats.scp"
+    vad_scp = audio_dir + "/vad.scp"
 
-    acc_stats_command = ("gmm-global-acc-stats --binary=false --update-flags=" + 
-                         update_flags_str + " " + 
-                         dubm + " " + 
-                         shlex.quote(feats) + " " + 
-                         tmp_spk_acc_file)
-    args = shlex.split(acc_stats_command)
-    p = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    p.wait()
-
-    output_model = model_dir + "/" + spk_id + "-identity.gmm"
-    map_command = ("gmm-global-est-map --update-flags=" + 
-                   update_flags_str + " " + 
-                   dubm + " " + 
-                   tmp_spk_acc_file + " " + 
-                   output_model)
-    args = shlex.split(map_command)
-    p = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    p.wait()
-
-    # delete all the tmp file
-    os.remove(tmp_spk_feats_scp)
-    os.remove(tmp_spk_vad_scp)
-    os.remove(tmp_spk_acc_file)
-
-print("--- obtaining gmm identity by updating ubm via MAP done ---")
-
-gmm_helper = gmm_ubm_kaldiHelper(pre_model_dir=pre_model_dir, audio_dir=audio_dir_gmm, 
-                                mfcc_dir=mfcc_dir_gmm, log_dir=log_dir_gmm, score_dir=score_dir)
-
-
-model_path_list = []
-for spk_id in enroll_spk_id:
-
-    model_path = model_dir + "/" + spk_id + "-identity.gmm"
-    model_path_list.append(model_path)
-
-print("--- calculate z-norm mean, z-norm std and set threshold ---")
-
-''' in order to set the threshold for gmm-ubm systems, we need the ubm model
-''' 
-model_path_list_ubm = ([dubm] + model_path_list)
-score_array = gmm_helper.score_existing(model_path_list_ubm, illegal_utt_path, n_jobs=n_jobs, debug=debug)
-ubm_normed_score_array = score_array[:, 1:] - score_array[:, 0:1]
-score_untarget = ubm_normed_score_array.flatten()
-
-# clear directory, otherwise kaldi may not keep all the audios to be scored.
-if os.path.exists(audio_dir_gmm):
-    shutil.rmtree(audio_dir_gmm)
-if os.path.exists(mfcc_dir_gmm):
-    shutil.rmtree(mfcc_dir_gmm)
-if os.path.exists(log_dir_gmm):
-    shutil.rmtree(log_dir_gmm)
-if os.path.exists(score_dir):
-    shutil.rmtree(score_dir)
-
-if not os.path.exists(audio_dir_gmm):
+    audio_dir_gmm = os.path.abspath("tmpfs/build_spk_models/gmm-audio-build-model")
+    if os.path.exists(audio_dir_gmm):
+        shutil.rmtree(audio_dir_gmm)
     os.makedirs(audio_dir_gmm)
-if not os.path.exists(mfcc_dir_gmm):
+    mfcc_dir_gmm = os.path.abspath("tmpfs/build_spk_models/gmm-mfcc-build-model")
+    if os.path.exists(mfcc_dir_gmm):
+        shutil.rmtree(mfcc_dir_gmm)
     os.makedirs(mfcc_dir_gmm)
-if not os.path.exists(log_dir_gmm):
+    log_dir_gmm = os.path.abspath("tmpfs/build_spk_models/gmm-log-build-model")
+    if os.path.exists(log_dir_gmm):
+        shutil.rmtree(log_dir_gmm)
     os.makedirs(log_dir_gmm)
-if not os.path.exists(score_dir):
+    score_dir = os.path.abspath("tmpfs/build_spk_models/gmm-score-build-model")
+    if os.path.exists(score_dir):
+        shutil.rmtree(score_dir)
     os.makedirs(score_dir)
 
-score_target = []
-for spk_id, model_path in zip(enroll_spk_id, model_path_list_ubm[1:]):
+elif type == 3:
+    xv_audio_dir = os.path.abspath("tmpfs/build_spk_models/xv-audio-build-model")
+    if os.path.exists(xv_audio_dir):
+        shutil.rmtree(xv_audio_dir)
+    os.makedirs(xv_audio_dir)
+    xv_mfcc_dir = os.path.abspath("tmpfs/build_spk_models/xv-mfcc-build-model")
+    if os.path.exists(xv_mfcc_dir):
+        shutil.rmtree(xv_mfcc_dir)
+    os.makedirs(xv_mfcc_dir)
+    xv_log_dir = os.path.abspath("tmpfs/build_spk_models/xv-log-build-model")
+    if os.path.exists(xv_log_dir):
+        shutil.rmtree(xv_log_dir)
+    os.makedirs(xv_log_dir)
+    xvector_dir = os.path.abspath("tmpfs/build_spk_models/xv-xvector-build-model")
+    if os.path.exists(xvector_dir):
+        shutil.rmtree(xvector_dir)
+    os.makedirs(xvector_dir)
 
-    model_path_list_tmp = [model_path_list_ubm[0], model_path]
-    test_utt_path_spk = list(np.array(test_utt_path)[np.argwhere(np.array(test_spk_id) == spk_id).flatten()])
+    xv_scores_file = xvector_dir + "/scores"
+    xvector_scp = xvector_dir + "/xvector.scp"
 
-    score_array = gmm_helper.score_existing(model_path_list_tmp, test_utt_path_spk, n_jobs=n_jobs, debug=debug)
-    ubm_normed_score_array = score_array[:, 1] - score_array[:, 0]
-    score_target += list(ubm_normed_score_array.flatten())
+else:
+    exit(0)
 
-    # clear directory
+
+''' type 1: generate ivector identity (stored in ivector_dir) and corresponding speaker model (stored as model/XX.iv)
+'''
+if type == 1:
+    print("----- type 1: generate ivector identity and corresponding speaker model, setting threshold -----")
+
+    iv_helper = ivector_PLDA_kaldiHelper(pre_model_dir=pre_model_dir, audio_dir=audio_dir, 
+                    mfcc_dir=mfcc_dir, log_dir=log_dir, ivector_dir=ivector_dir)
+
+    print("--- extracting and scoring ---")
+    test_utt_id_scoring = z_norm_utt_id + test_utt_id + illegal_utt_id
+    iv_helper.score_existing(audio_path_list, enroll_utt_id, spk_id_list=spk_id_list, 
+                            utt_id_list=utt_id_list, test_utt_id=test_utt_id_scoring, 
+                            n_jobs=n_jobs, flag=1, debug=debug)
+    print("--- extracting and scoring done---")
+
+    print("--- resolve score and obtain z norm mean and std value, and setting threshold ---")
+    scores_mat = np.loadtxt(scores_file, dtype=str)
+    train_utt_id = scores_mat[:, 0]
+    test_utt_id_scoring = scores_mat[:, 1]
+    score = scores_mat[:, 2].astype(np.float64)
+    print('train_utt_id:', train_utt_id)
+    print('test_utt_id_scoring:', test_utt_id_scoring)
+
+    train_spk_id = np.array([utt_id.split("-")[0] for utt_id in train_utt_id])
+    test_spk_id_scoring = np.array([utt_id.split("-")[0] for utt_id in test_utt_id_scoring])
+
+    z_norm_index = []
+    for i, utt_id in enumerate(test_utt_id_scoring):
+        if utt_id in z_norm_utt_id:
+            z_norm_index.append(i)
+    target_index = np.argwhere(train_spk_id == test_spk_id_scoring).flatten()
+    untarget_index = np.setdiff1d(np.argwhere(train_spk_id != test_spk_id_scoring).flatten(), np.array(z_norm_index))
+
+    z_norm_means = np.zeros(len(enroll_utt_id), dtype=np.float64)
+    z_norm_stds = np.zeros(len(enroll_utt_id), dtype=np.float64)
+    score_target = []
+    score_untarget =[]
+
+    for i, id in enumerate(enroll_spk_id):
+        index = np.argwhere(train_spk_id[z_norm_index] == id).flatten()
+        mean = np.mean((score[z_norm_index])[index])
+        std = np.std((score[z_norm_index])[index])
+        z_norm_means[i] = mean
+        z_norm_stds[i] = std
+
+        index = np.argwhere(train_spk_id[target_index] == id).flatten()
+        score_target += list(((score[target_index])[index] - mean) / std)
+
+        index = np.argwhere(train_spk_id[untarget_index] == id).flatten()
+        score_untarget += list(((score[untarget_index])[index] - mean) / std)
+
+    final_threshold, final_frr, final_far = set_threshold(score_target, score_untarget)
+    print("-- threshold:%f, far:%f, frr:%f --" %(final_threshold, final_far, final_frr))
+    print("--- resolve score and obtain z norm mean and std value, and setting threshold done ---")
+
+    print("--- dump speaker unique model ---")
+    for i, utt_id in enumerate(enroll_utt_id):
+
+        spk_id = enroll_spk_id[i]
+        z_norm_mean = z_norm_means[i]
+        z_norm_std = z_norm_stds[i]
+
+        ivectors_utt_location = np.loadtxt(ivector_scp, dtype=str)
+        ivectors_utt = ivectors_utt_location[:, 0]
+        ivectors_location = ivectors_utt_location[:, 1]
+        identity_location = os.path.abspath(ivectors_location[np.argwhere(ivectors_utt == utt_id).flatten()[0]]) # use absolute path
+
+        spk_unique_model = [spk_id, utt_id, identity_location, z_norm_mean, z_norm_std, final_threshold]
+        print(spk_unique_model),
+
+        with open(model_dir + "/" + spk_id + ".iv", "wb") as writer:
+            pickle.dump(spk_unique_model, writer, protocol=-1)
+
+    print("--- dump speaker unique model done ---")
+
+    print("----- type 1: generate ivector identity and corresponding speaker model, setting threshold done -----")
+
+
+
+''' type 2: generate gmm identity (stored as model/XX-identity.gmm) and corrsponding speaker model (stored as model/XX.gmm)
+'''
+if type == 2:
+    print("----- type 2: generate gmm identity and corresponding speaker model, setting threshold -----")
+
+    dubm = os.path.abspath(os.path.join(pre_model_dir, "final.dubm"))
+    delta_opts_file = os.path.join(pre_model_dir, "delta_opts")
+    with open(delta_opts_file, "r") as reader:
+        delta_opts = reader.read()[:-1]
+    update_flags_str = "m" # only update the mean vectors of gmm
+
+    print("--- obtaining gmm identity by updating ubm via MAP ---")
+    tmp_spk_feats_scp = audio_dir + "/feats_spk.scp"
+    tmp_spk_vad_scp = audio_dir + "/vad_spk.scp"
+    tmp_spk_acc_file = audio_dir + "/gmm_map_acc.acc"
+
+    feats_utt_location = np.loadtxt(feats_scp, dtype=str)
+    feats_utt = feats_utt_location[:, 0]
+    feats_location = feats_utt_location[:, 1]
+    vad_utt_location = np.loadtxt(vad_scp, dtype=str)
+    vad_utt = vad_utt_location[:, 0]
+    vad_location = vad_utt_location[:, 1]
+
+    for spk_id, utt_id in zip(enroll_spk_id, enroll_utt_id):
+
+        index = np.argwhere(feats_utt == utt_id).flatten()[0]
+        location = feats_location[index]
+        spk_feats_scp_content = utt_id + " " + location + "\n"
+        with open(tmp_spk_feats_scp, "w") as writer:
+            writer.write(spk_feats_scp_content)
+        
+        index = np.argwhere(vad_utt == utt_id).flatten()[0]
+        location = vad_location[index]
+        spk_vad_scp_content = utt_id + " " + location +  "\n"
+        with open(tmp_spk_vad_scp, "w") as writer:
+            writer.write(spk_vad_scp_content)
+        
+        add_deltas = ("add-deltas " + delta_opts + " scp:" + tmp_spk_feats_scp + " ark:- |")
+        apply_cmvn = "apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=300 ark:- ark:- |"
+        select_voiced_frame = ("select-voiced-frames ark:- scp,s,cs:"  + tmp_spk_vad_scp + " ark:- |")
+        feats = ("ark,s,cs:" + add_deltas + " " + apply_cmvn + " " + select_voiced_frame)
+
+        acc_stats_command = ("gmm-global-acc-stats --binary=false --update-flags=" + 
+                            update_flags_str + " " + 
+                            dubm + " " + 
+                            shlex.quote(feats) + " " + 
+                            tmp_spk_acc_file)
+        args = shlex.split(acc_stats_command)
+        p = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        p.wait()
+
+        output_model = model_dir + "/" + spk_id + "-identity.gmm"
+        map_command = ("gmm-global-est-map --update-flags=" + 
+                    update_flags_str + " " + 
+                    dubm + " " + 
+                    tmp_spk_acc_file + " " + 
+                    output_model)
+        args = shlex.split(map_command)
+        p = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        p.wait()
+
+        # delete all the tmp file
+        os.remove(tmp_spk_feats_scp)
+        os.remove(tmp_spk_vad_scp)
+        os.remove(tmp_spk_acc_file)
+
+    print("--- obtaining gmm identity by updating ubm via MAP done ---")
+
+    gmm_helper = gmm_ubm_kaldiHelper(pre_model_dir=pre_model_dir, audio_dir=audio_dir_gmm, 
+                                    mfcc_dir=mfcc_dir_gmm, log_dir=log_dir_gmm, score_dir=score_dir)
+
+
+    model_path_list = []
+    for spk_id in enroll_spk_id:
+
+        model_path = model_dir + "/" + spk_id + "-identity.gmm"
+        model_path_list.append(model_path)
+
+    print("--- calculate z-norm mean, z-norm std and set threshold ---")
+
+    ''' in order to set the threshold for gmm-ubm systems, we need the ubm model
+    ''' 
+    model_path_list_ubm = ([dubm] + model_path_list)
+    score_array = gmm_helper.score_existing(model_path_list_ubm, illegal_utt_path, n_jobs=n_jobs, debug=debug)
+    ubm_normed_score_array = score_array[:, 1:] - score_array[:, 0:1]
+    score_untarget = ubm_normed_score_array.flatten()
+
+    # clear directory, otherwise kaldi may not keep all the audios to be scored.
     if os.path.exists(audio_dir_gmm):
         shutil.rmtree(audio_dir_gmm)
     if os.path.exists(mfcc_dir_gmm):
@@ -386,34 +403,151 @@ for spk_id, model_path in zip(enroll_spk_id, model_path_list_ubm[1:]):
     if not os.path.exists(score_dir):
         os.makedirs(score_dir)
 
-final_threshold, final_frr, final_far = set_threshold(score_target, score_untarget)
+    score_target = []
+    for spk_id, model_path in zip(enroll_spk_id, model_path_list_ubm[1:]):
 
-print("-- threshold:%f, far:%f, frr:%f --" %(final_threshold, final_far, final_frr))
+        model_path_list_tmp = [model_path_list_ubm[0], model_path]
+        test_utt_path_spk = list(np.array(test_utt_path)[np.argwhere(np.array(test_spk_id) == spk_id).flatten()])
 
-''' calculate z-norm and z-std. Note that z-norm is only used in CSI. IN SV and OSI, we use UBM norm.
-'''
-score_array = gmm_helper.score_existing(model_path_list, z_norm_utt_path, n_jobs=n_jobs, debug=debug)
-z_norm_means = np.mean(score_array, axis=0).flatten()
-z_norm_stds = np.std(score_array, axis=0).flatten()
+        score_array = gmm_helper.score_existing(model_path_list_tmp, test_utt_path_spk, n_jobs=n_jobs, debug=debug)
+        ubm_normed_score_array = score_array[:, 1] - score_array[:, 0]
+        score_target += list(ubm_normed_score_array.flatten())
 
-print("--- calculate z-norm mean, z-norm std and set threshold done ---")
+        # clear directory
+        if os.path.exists(audio_dir_gmm):
+            shutil.rmtree(audio_dir_gmm)
+        if os.path.exists(mfcc_dir_gmm):
+            shutil.rmtree(mfcc_dir_gmm)
+        if os.path.exists(log_dir_gmm):
+            shutil.rmtree(log_dir_gmm)
+        if os.path.exists(score_dir):
+            shutil.rmtree(score_dir)
 
-print(" --- dump speaker unique model --- ")
-for i, spk_id in enumerate(enroll_spk_id):
+        if not os.path.exists(audio_dir_gmm):
+            os.makedirs(audio_dir_gmm)
+        if not os.path.exists(mfcc_dir_gmm):
+            os.makedirs(mfcc_dir_gmm)
+        if not os.path.exists(log_dir_gmm):
+            os.makedirs(log_dir_gmm)
+        if not os.path.exists(score_dir):
+            os.makedirs(score_dir)
 
-    utt_id = enroll_utt_id[i]
-    identity_location = os.path.abspath(model_dir + "/" + spk_id + "-identity.gmm")
-    z_norm_mean = z_norm_means[i]
-    z_norm_std = z_norm_stds[i]
+    final_threshold, final_frr, final_far = set_threshold(score_target, score_untarget)
 
-    # spk_unique_model = [spk_id, utt_id, identity_location, z_norm_mean, z_norm_std]
-    spk_unique_model = [spk_id, utt_id, identity_location, z_norm_mean, z_norm_std, final_threshold]
+    print("-- threshold:%f, far:%f, frr:%f --" %(final_threshold, final_far, final_frr))
 
-    print(spk_unique_model),
+    ''' calculate z-norm and z-std. Note that z-norm is only used in CSI. IN SV and OSI, we use UBM norm.
+    '''
+    score_array = gmm_helper.score_existing(model_path_list, z_norm_utt_path, n_jobs=n_jobs, debug=debug)
+    z_norm_means = np.mean(score_array, axis=0).flatten()
+    z_norm_stds = np.std(score_array, axis=0).flatten()
 
-    with open(model_dir + "/" + spk_id + ".gmm", "wb") as writer:
-        pickle.dump(spk_unique_model, writer, protocol=-1)
+    print("--- calculate z-norm mean, z-norm std and set threshold done ---")
 
-print(" --- dump speaker unique model done --- ")
+    print(" --- dump speaker unique model --- ")
+    for i, spk_id in enumerate(enroll_spk_id):
 
-print("----- step 2: generate gmm identity and corresponding speaker model, setting threshold done -----")
+        utt_id = enroll_utt_id[i]
+        identity_location = os.path.abspath(model_dir + "/" + spk_id + "-identity.gmm")
+        z_norm_mean = z_norm_means[i]
+        z_norm_std = z_norm_stds[i]
+
+        # spk_unique_model = [spk_id, utt_id, identity_location, z_norm_mean, z_norm_std]
+        spk_unique_model = [spk_id, utt_id, identity_location, z_norm_mean, z_norm_std, final_threshold]
+
+        print(spk_unique_model),
+
+        with open(model_dir + "/" + spk_id + ".gmm", "wb") as writer:
+            pickle.dump(spk_unique_model, writer, protocol=-1)
+
+    print(" --- dump speaker unique model done --- ")
+
+    print("----- type 2: generate gmm identity and corresponding speaker model, setting threshold done -----")
+
+
+
+if type==3:
+    print("----- type 3: generate xvector identity and corresponding speaker model, setting threshold -----")
+
+    xv_helper = xvector_PLDA_kaldiHelper(pre_model_dir=xvector_model_dir, audio_dir=xv_audio_dir, \
+                    mfcc_dir=xv_mfcc_dir, log_dir=xv_log_dir, xvector_dir=xvector_dir)
+
+    print("--- extracting and scoring ---")
+    test_utt_id_scoring = z_norm_utt_id + test_utt_id #+ illegal_utt_id
+    xv_helper.score_existing(audio_path_list, enroll_utt_id, spk_id_list=spk_id_list, 
+                            utt_id_list=utt_id_list, test_utt_id=test_utt_id_scoring, 
+                            n_jobs=n_jobs, flag=1, debug=debug)
+    print("--- extracting and scoring done---")
+
+    print("--- resolve score and obtain z norm mean and std value, and setting threshold ---")
+
+    scores_mat = np.loadtxt(xv_scores_file, dtype=str)
+    train_utt_id = scores_mat[:, 0]
+    test_utt_id_scoring = scores_mat[:, 1]
+    score = scores_mat[:, 2].astype(np.float64)
+    train_spk_id = np.array([utt_id.split("-")[0] for utt_id in train_utt_id])
+    test_spk_id_scoring = np.array([utt_id.split("-")[0] for utt_id in test_utt_id_scoring])
+
+    z_norm_index = []
+    for i, utt_id in enumerate(test_utt_id_scoring):
+        if utt_id in z_norm_utt_id:
+            z_norm_index.append(i)
+    target_index = np.argwhere(train_spk_id == test_spk_id_scoring).flatten()
+    untarget_index = np.setdiff1d(np.argwhere(train_spk_id != test_spk_id_scoring).flatten(), np.array(z_norm_index))
+
+    z_norm_means = np.zeros(len(enroll_utt_id), dtype=np.float64)
+    z_norm_stds = np.zeros(len(enroll_utt_id), dtype=np.float64)
+    score_target = []
+    score_untarget = []
+
+    for i, id in enumerate(enroll_spk_id):
+
+        index = np.argwhere(train_spk_id[z_norm_index] == id).flatten()
+        mean = np.mean((score[z_norm_index])[index])
+        std = np.std((score[z_norm_index])[index])
+        z_norm_means[i] = mean
+        z_norm_stds[i] = std
+
+        index = np.argwhere(train_spk_id[target_index] == id).flatten()
+        score_target += list(((score[target_index])[index] - mean) / std)
+
+        index = np.argwhere(train_spk_id[untarget_index] == id).flatten()
+        score_untarget += list(((score[untarget_index])[index] - mean) / std)
+
+    final_threshold, final_frr, final_far = set_threshold(score_target, score_untarget)
+
+    print("-- threshold:%f, far:%f, frr:%f --" %(final_threshold, final_far, final_frr))
+    # -- threshold:2.092117, far:1.414141, frr:1.414141 --
+    
+    print("--- resolve score and obtain z norm mean and std value, and setting threshold done ---")
+
+    print("--- dump speaker unique model ---")
+
+    for i, utt_id in enumerate(enroll_utt_id):
+
+        spk_id = enroll_spk_id[i]
+        z_norm_mean = z_norm_means[i]
+        z_norm_std = z_norm_stds[i]
+
+        xvectors_utt_location = np.loadtxt(xvector_scp, dtype=str)
+        xvectors_utt = xvectors_utt_location[:, 0]
+        xvectors_location = xvectors_utt_location[:, 1]
+        identity_location = os.path.abspath(xvectors_location[np.argwhere(xvectors_utt == utt_id).flatten()[0]]) # use absolute path
+
+        spk_unique_model = [spk_id, utt_id, identity_location, z_norm_mean, z_norm_std, final_threshold]
+        print(spk_unique_model),
+        '''
+        ['2830', '2830-3980-0075', '/data1/github/fakebob/tmpfs/build_spk_models/xv-xvector-build-model/xvector.12.ark:182439', -20.121085328762472, 11.247744770031366, 2.092116990976621]
+        ['4446', '4446-2275-0021', '/data1/github/fakebob/tmpfs/build_spk_models/xv-xvector-build-model/xvector.23.ark:172074', -19.43794617458289, 12.214642671056778, 2.092116990976621]
+        ['1580', '1580-141084-0048', '/data1/github/fakebob/tmpfs/build_spk_models/xv-xvector-build-model/xvector.4.ark:211667', -25.451682650488365, 14.27479523339051, 2.092116990976621]
+        ['61', '61-70968-0030', '/data1/github/fakebob/tmpfs/build_spk_models/xv-xvector-build-model/xvector.32.ark:62174', -21.32195902046487, 11.417392295354874, 2.092116990976621]
+        ['5142', '5142-33396-0051', '/data1/github/fakebob/tmpfs/build_spk_models/xv-xvector-build-model/xvector.27.ark:105790', -19.3570476664052, 12.352980388170705, 2.092116990976621]
+        '''
+
+        with open(model_dir + "/" + spk_id + ".xv", "wb") as writer:
+            pickle.dump(spk_unique_model, writer, protocol=-1)
+
+    print("--- dump speaker unique model done ---")
+
+    print("----- type 3: generate xvector identity and corresponding speaker model, setting threshold done -----")
+

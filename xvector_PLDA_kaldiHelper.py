@@ -5,10 +5,11 @@ from scipy.io.wavfile import read, write
 import subprocess
 import shlex
 import time
+import traceback
 
-class ivector_PLDA_kaldiHelper:
+class xvector_PLDA_kaldiHelper:
 
-    def __init__(self, pre_model_dir="./kaldi_models/ivector_models", audio_dir=None, mfcc_dir=None, log_dir=None, ivector_dir=None):
+    def __init__(self, pre_model_dir="./kaldi_models/xvector_models", audio_dir=None, mfcc_dir=None, log_dir=None, xvector_dir=None):
 
         ''' pre_model_dir: directory where final.dubm, final.ubm, final.ie, 
                        mean.vec, transfrom.mat, plda, conf/, steps/, utils/ and sid/ are stored. 
@@ -16,7 +17,7 @@ class ivector_PLDA_kaldiHelper:
         audio_dir: directory to store the temp audios
         mfcc_dir: directory where generated mfcc is stored
         log_dir: directory where log information of kaldi is stored
-        ivector_dir: directory where extracted ivectors are stored
+        xvector_dir: directory where extracted xvectors are stored
         '''
 
         self.pre_model_dir = os.path.abspath(pre_model_dir)
@@ -30,8 +31,11 @@ class ivector_PLDA_kaldiHelper:
         log_dir = log_dir if log_dir else "log"
         self.log_dir = os.path.abspath(log_dir)
 
-        ivector_dir = ivector_dir if ivector_dir else "ivector"
-        self.ivector_dir = os.path.abspath(ivector_dir)
+        # print('xvector_dir:', xvector_dir)
+        xvector_dir = xvector_dir if xvector_dir else "xvector"
+        self.xvector_dir = os.path.abspath(xvector_dir)
+        # print('self.xvector_dir:', self.xvector_dir)
+
 
         ''' deal with the protential permission issue
         '''
@@ -80,6 +84,9 @@ class ivector_PLDA_kaldiHelper:
             Note: if utt_id_list and spk_id_listis provided, both of them must be in sorted order, 
             otherwise, the returning scores may disorder
         '''
+        # print('utt_id_list:', utt_id_list)
+        # print('spk_id_list:', spk_id_list)
+        # print('audio_dir:', audio_dir)
 
         audio_dir = os.path.abspath(audio_dir) if audio_dir else self.audio_dir
         if not audio_dir:
@@ -186,19 +193,17 @@ class ivector_PLDA_kaldiHelper:
 
         os.chdir(current_dir)
 
-    # def extract_ivector(self, n_jobs=10, n_threads=1, audio_dir=None, ivector_dir=None, pre_model_dir=None, debug=False):
-    def extract_ivector(self, n_jobs=10, n_threads=1, audio_dir=None, ivector_dir=None, debug=False):
+    def extract_xvector(self, n_jobs=10, audio_dir=None, xvector_dir=None, debug=False):
 
         audio_dir = os.path.abspath(audio_dir) if audio_dir else self.audio_dir
-        ivector_dir = os.path.abspath(ivector_dir) if ivector_dir else self.ivector_dir
+        xvector_dir = os.path.abspath(xvector_dir) if xvector_dir else self.xvector_dir
         # pre_model_dir = pre_model_dir if pre_model_dir else self.pre_model_dir
-        extract_ivector_command = (self.pre_model_dir + "/sid/extract_ivectors.sh --cmd '$train_cmd' --nj " + str(n_jobs) +
-                            " --num-threads " + str(n_threads) + " " + self.pre_model_dir + " " + 
-                            audio_dir + " " + ivector_dir)
+        extract_xvector_command = (self.pre_model_dir + "/sid/nnet3/xvector/extract_xvectors.sh --cmd '$train_cmd' --nj "
+                            + str(n_jobs) + " " + self.pre_model_dir + " " + audio_dir + " " + xvector_dir)
         current_dir = os.path.abspath(os.curdir)
         os.chdir(self.pre_model_dir)
 
-        args = shlex.split(extract_ivector_command)
+        args = shlex.split(extract_xvector_command)
         p = subprocess.Popen(args) if debug else subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         p.wait()
 
@@ -210,8 +215,7 @@ class ivector_PLDA_kaldiHelper:
             test_utt_id: a list
             target: a list
         '''
-
-        trials_file = os.path.abspath(trials_file) if trials_file else self.ivector_dir + "/trials"
+        trials_file = os.path.abspath(trials_file) if trials_file else self.xvector_dir + "/trials"
 
         if flag == 1:
             train_tmp = []
@@ -240,25 +244,28 @@ class ivector_PLDA_kaldiHelper:
 
         np.savetxt(trials_file, trials_mat, fmt="%s")
     
-    def plda_scoring(self, train_ivector_scp=None, test_ivector_scp=None, trials_file=None, scores_file=None, 
+    def plda_scoring(self, train_xvector_scp=None, test_xvector_scp=None, trials_file=None, scores_file=None, 
               plda=None, mean_vec=None, transform_mat=None, debug=False):
 
-        train_ivector_scp = os.path.abspath(train_ivector_scp) if train_ivector_scp else self.ivector_dir + "/ivector.scp"
-        test_ivector_scp = os.path.abspath(test_ivector_scp) if test_ivector_scp else self.ivector_dir + "/ivector.scp"
-        trials_file = os.path.abspath(trials_file) if trials_file else self.ivector_dir + "/trials"
-        scores_file = os.path.abspath(scores_file) if scores_file else self.ivector_dir + "/scores"
-        plda = os.path.abspath(plda) if plda else self.pre_model_dir + "/plda"
-        mean_vec = os.path.abspath(mean_vec) if mean_vec else self.pre_model_dir + "/mean.vec"
-        transform_mat = os.path.abspath(transform_mat) if transform_mat else self.pre_model_dir + "/transform.mat"
+        # print('train_xvector_scp:', train_xvector_scp)
+        # print('test_xvector_scp:', test_xvector_scp)
+
+        train_xvector_scp = os.path.abspath(train_xvector_scp) if train_xvector_scp else self.xvector_dir + "/xvector.scp"
+        test_xvector_scp = os.path.abspath(test_xvector_scp) if test_xvector_scp else self.xvector_dir + "/xvector.scp"
+        trials_file = os.path.abspath(trials_file) if trials_file else self.xvector_dir + "/trials"
+        scores_file = os.path.abspath(scores_file) if scores_file else self.xvector_dir + "/scores"
+        plda = os.path.abspath(plda) if plda else os.path.join(self.pre_model_dir,"xvectors_train","plda")
+        mean_vec = os.path.abspath(mean_vec) if mean_vec else os.path.join(self.pre_model_dir,"xvectors_train","mean.vec")
+        transform_mat = os.path.abspath(transform_mat) if transform_mat else os.path.join(self.pre_model_dir,"xvectors_train","transform.mat")
 
         copy_plda_command = "ivector-copy-plda --smoothing=0.0 " + plda + " - |"
-        train_ivector_command = "ark:ivector-subtract-global-mean " + mean_vec + " scp:" + train_ivector_scp + " ark:- | transform-vec " + transform_mat + " ark:- ark:- | ivector-normalize-length ark:- ark:- |"
-        test_ivector_command = "ark:ivector-subtract-global-mean " + mean_vec + " scp:" + test_ivector_scp + " ark:- | transform-vec " + transform_mat + " ark:- ark:- | ivector-normalize-length ark:- ark:- |"
+        train_xvector_command = "ark:ivector-subtract-global-mean " + mean_vec + " scp:" + train_xvector_scp + " ark:- | transform-vec " + transform_mat + " ark:- ark:- | ivector-normalize-length ark:- ark:- |"
+        test_xvector_command = "ark:ivector-subtract-global-mean " + mean_vec + " scp:" + test_xvector_scp + " ark:- | transform-vec " + transform_mat + " ark:- ark:- | ivector-normalize-length ark:- ark:- |"
         trials_command = "cat " + trials_file + " | cut -d\  --fields=1,2 |"
         scores_command = ("ivector-plda-scoring --normalize-length=true " + 
                     shlex.quote(copy_plda_command) + " " +
-                    shlex.quote(train_ivector_command) + " " + 
-                    shlex.quote(test_ivector_command) + " " +
+                    shlex.quote(train_xvector_command) + " " + 
+                    shlex.quote(test_xvector_command) + " " +
                     shlex.quote(trials_command) + " " +
                     scores_file)
         current_dir = os.path.abspath(os.curdir)
@@ -272,7 +279,7 @@ class ivector_PLDA_kaldiHelper:
     
     def resolve_score(self, scores_file=None):
 
-        scores_file = os.path.abspath(scores_file) if scores_file else self.ivector_dir + "/scores"
+        scores_file = os.path.abspath(scores_file) if scores_file else self.xvector_dir + "/scores"
         scores_mat = np.loadtxt(scores_file, dtype=str)
 
         if len(scores_mat.shape) == 1:
@@ -302,10 +309,9 @@ class ivector_PLDA_kaldiHelper:
        When the audios to be scored are stored in disk (e.g., wav file), call this function
     '''
     def score_existing(self, audio_path_list, train_utt_id, spk_id_list=None, utt_id_list=None, test_utt_id=None, 
-                  n_jobs=10, n_threads=1,
-                  audio_dir=None, mfcc_dir=None, log_dir=None, vad_dir=None, ivector_dir=None,
+                  n_jobs=10, audio_dir=None, mfcc_dir=None, log_dir=None, vad_dir=None, xvector_dir=None,
                   vad_conf=None, mfcc_conf=None, target=None, trials_file=None, flag=0,
-                  train_ivector_scp=None, test_ivector_scp=None, scores_file=None, 
+                  train_xvector_scp=None, test_xvector_scp=None, scores_file=None, 
                   plda=None, mean_vec=None, transform_mat=None, debug=False):
         
         n_audios = len(audio_path_list)
@@ -315,11 +321,11 @@ class ivector_PLDA_kaldiHelper:
         utt_id_list = self.data_prepare(audio_path_list, spk_id_list=spk_id_list, utt_id_list=utt_id_list, audio_dir=audio_dir, debug=debug)
         self.make_mfcc(n_jobs=n_jobs, mfcc_conf=mfcc_conf, audio_dir=audio_dir, mfcc_dir=mfcc_dir, log_dir=log_dir, debug=debug)
         self.compute_vad(n_jobs=n_jobs, vad_conf=vad_conf, audio_dir=audio_dir, vad_dir=vad_dir, log_dir=log_dir, debug=debug)
-        self.extract_ivector(n_jobs=n_jobs, n_threads=n_threads, audio_dir=audio_dir, ivector_dir=ivector_dir, debug=debug)
+        self.extract_xvector(n_jobs=n_jobs, audio_dir=audio_dir, xvector_dir=xvector_dir, debug=debug)
         
         test_utt_id = test_utt_id if test_utt_id else utt_id_list
         self.write_trials(train_utt_id, test_utt_id, target=target, trials_file=trials_file, flag=flag)
-        self.plda_scoring(train_ivector_scp=train_ivector_scp, test_ivector_scp=test_ivector_scp, trials_file=trials_file, 
+        self.plda_scoring(train_xvector_scp=train_xvector_scp, test_xvector_scp=test_xvector_scp, trials_file=trials_file, 
             scores_file=scores_file, plda=plda, mean_vec=mean_vec, transform_mat=transform_mat, debug=debug)
         
         score_array = self.resolve_score()
@@ -329,15 +335,16 @@ class ivector_PLDA_kaldiHelper:
        When the audios to be scored are in the memory (e.g., in the form of np.array), call this function
     '''
     def score(self, audio_list, train_utt_id, spk_id_list=None, utt_id_list=None, test_utt_id=None, 
-                  n_jobs=10, n_threads=1,
-                  audio_dir=None, mfcc_dir=None, log_dir=None, vad_dir=None, ivector_dir=None,
+                  n_jobs=10, audio_dir=None, mfcc_dir=None, log_dir=None, vad_dir=None, xvector_dir=None,
                   vad_conf=None, mfcc_conf=None, target=None, trials_file=None, flag=0, 
-                  train_ivector_scp=None, test_ivector_scp=None, scores_file=None, 
+                  train_xvector_scp=None, test_xvector_scp=None, scores_file=None, 
                   plda=None, mean_vec=None, transform_mat=None, debug=False):
         n_audios = len(audio_list)
         if n_audios < n_jobs:
             n_jobs = n_audios
         print('audios: {}, n_jobs: {}'.format(n_audios, n_jobs))
+        #traceback.print_stack()
+        
         s1 = time.time()
         audio_path_list = self.write_audio(audio_list, audio_dir=audio_dir)
         s2 = time.time()
@@ -347,17 +354,15 @@ class ivector_PLDA_kaldiHelper:
         s4 = time.time()
         self.compute_vad(n_jobs=n_jobs, vad_conf=vad_conf, audio_dir=audio_dir, vad_dir=vad_dir, log_dir=log_dir, debug=debug)
         s5 = time.time()
-        self.extract_ivector(n_jobs=n_jobs, n_threads=n_threads, audio_dir=audio_dir, ivector_dir=ivector_dir, debug=debug)
+        self.extract_xvector(n_jobs=n_jobs, audio_dir=audio_dir, xvector_dir=xvector_dir, debug=debug)
         s6 = time.time()
         test_utt_id = test_utt_id if test_utt_id else utt_id_list
         self.write_trials(train_utt_id, test_utt_id, target=target, trials_file=trials_file, flag=flag)
         s7 = time.time()
-        self.plda_scoring(train_ivector_scp=train_ivector_scp, test_ivector_scp=test_ivector_scp, trials_file=trials_file,
+        self.plda_scoring(train_xvector_scp=train_xvector_scp, test_xvector_scp=test_xvector_scp, trials_file=trials_file,
             scores_file=scores_file, plda=plda, mean_vec=mean_vec, transform_mat=transform_mat, debug=debug)
         
         score_array = self.resolve_score()
         s8 = time.time()
-        #print('write_audio:',s2-s1,', data_prepare:',s3-s2,', mfcc:',s4-s3,', vad:',s5-s4,', ivector:',s6-s5,', trials:',s7-s6,', score:',s8-s7,', total:',s8-s1)
+        #print('write_audio:',s2-s1,', data_prepare:',s3-s2,', mfcc:',s4-s3,', vad:',s5-s4,', xvector:',s6-s5,', trials:',s7-s6,', score:',s8-s7,', total:',s8-s1)
         return score_array  
-
-

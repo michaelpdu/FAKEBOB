@@ -3,6 +3,19 @@ Source code for paper "Who is real Bob? Adversarial Attacks on Speaker Recogniti
 
 Demonstration Website: [FAKEBOB Website](https://sites.google.com/view/fakebob/home "FAKEBOB Website")
 
+## Notes added by MD
+
+Before execute `attackMain.sh`, add environment variables using following command.
+```
+. ./env.sh
+```
+
+arbitrary wave file(s), placed in `./data/illegal-set/` in following format:
+```
+./data/illegal-set/260/260-123286-0005.wav
+```
+
+
 ## Basic
 #### Note that we have only tested our code on Ubuntu 16.04 system. It should work well as well on other Linux systems.
 
@@ -27,7 +40,8 @@ Reproduce our experiment step by step:
     - copy (or make soft link) *plda*, *mean.vec*, *transform.mat* in ***voxceleb/v1/exp/ivectors_train/*** to ***pre-models/***.  
     - copy (or make soft link) *conf/* in ***voxceleb/v1*** to ***pre-models/***.  
     - copy (or make soft link) *sid/*, *steps/*, *utils/* in ***voxceleb/v1*** to ***pre-models/***.
-
+    - [MD] copy *cmd.sh* and *path.sh* in ***voxceleb/v1*** to ***pre-models/***, and modify *KALDI_ROOT* in *path.sh*
+    - [MD] execute *env.sh* before step 6.
 5. Downoad our dataset. Our used dataset comes from **LibriSpeech**. We just select part of it and convert the *.flac* format to *.wav* format.  
     - download data.tgz from [data.tgz, 920MB](https://drive.google.com/open?id=1oFCF3Ggw9xIyUDcYfmtUHd5ih1jUY79v "data.tgz").  
     - untar data.tgz to the location of FAKEBOB, after which you will see a new directory named *data/*.  

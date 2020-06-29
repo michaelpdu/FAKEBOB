@@ -1,6 +1,6 @@
 
 # put your KALDI_ROOT here, KALDI_ROOT is the parent directory of egs, src, etc.
-KALDI_ROOT=/root/gkchen/kaldi
+KALDI_ROOT=/data1/github/kaldi
 
 ########################################################
 # This small part of code is directly drawn from KALDI_ROOT/tools/config/command_path.sh
@@ -35,20 +35,25 @@ ${KALDI_ROOT}/src/cudadecoderbin:\
 $PATH
 ####################################################
 
-spk_ids="1580 2830 4446 5142 61"
+export LD_LIBRARY_PATH=\
+${KALDI_ROOT}/src/lib:\
+$LD_LIBRARY_PATH
 
-archi=gmm
-# archi=iv
-task=OSI
-# task=CSI
-# task=SV
-attack_type=targeted
-# attack_type=untargeted
+#spk_ids="1580 2830 4446 5142 61"
+spk_ids="9001"
+#archi=gmm
+#archi=iv
+archi=xv
+#task=OSI
+#task=CSI
+task=SV
+#attack_type=targeted
+attack_type=untargeted
 
 adver_thresh=0.0
 epsilon=0.002
 max_iter=1000
-max_lr=0.001
+max_lr=0.0005
 min_lr=1e-6
 samples=50
 sigma=0.001
@@ -56,10 +61,10 @@ momentum=0.9
 plateau_length=5
 plateau_drop=2.0
 
-n_jobs=5
-# debug=False
+n_jobs=48
+debug=True
 
-python attackMain.py -spk_id $spk_ids -archi $archi -task $task -type $attack_type \
+python attack.py -spk_id $spk_ids -archi $archi -task $task -type $attack_type \
 -adver $adver_thresh -epsilon $epsilon -max_iter $max_iter -max_lr $max_lr \
 -min_lr $min_lr -samples $samples -sigma $sigma -momentum $momentum \
 -plateau_length $plateau_length -plateau_drop $plateau_drop \

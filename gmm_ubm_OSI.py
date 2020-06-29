@@ -7,7 +7,7 @@ import copy
 
 class gmm_OSI(object):
 
-    def __init__(self, group_id, model_list, ubm, pre_model_dir="pre-models", threshold=None):
+    def __init__(self, group_id, model_list, ubm, pre_model_dir="./kaldi_models/ivector_models", threshold=None):
 
         self.pre_model_dir = os.path.abspath(pre_model_dir)
 

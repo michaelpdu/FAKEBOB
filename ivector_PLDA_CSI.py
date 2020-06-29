@@ -12,7 +12,7 @@ bits_per_sample = 16
 
 class iv_CSI:
 
-    def __init__(self, group_id, model_list, pre_model_dir="pre-models"):
+    def __init__(self, group_id, model_list, pre_model_dir="./kaldi_models/ivector_models"):
         
         self.pre_model_dir = os.path.abspath(pre_model_dir)
 
