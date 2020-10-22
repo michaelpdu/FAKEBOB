@@ -317,7 +317,7 @@ class SpeakerModelBuilder:
             shutil.rmtree(log_dir)
         os.makedirs(log_dir)
         #
-        ivector_dir = os.path.abspath("tmpfs/build_spk_models/iv-socre")
+        ivector_dir = os.path.abspath("tmpfs/build_spk_models/iv-score")
         if os.path.exists(ivector_dir):
             shutil.rmtree(ivector_dir)
         os.makedirs(ivector_dir)
@@ -529,7 +529,7 @@ Run 'python %(prog)s --help' for help info.''',
     parser.add_argument('--illegal', type=str, default='./data/illegal-set', help='illegal directory')
     parser.add_argument('--test', type=str, default='./data/test-set', help='test directory')
     parser.add_argument('--znorm', type=str, default='./data/z-norm-set', help='znorm directory')
-    parser.add_argument('--type', type=str, default='xvector', help='supported type, ivector|xvector|gmm, default is xvector')
+    parser.add_argument('--type', type=str, default='ivector', help='supported type, ivector|xvector|gmm, default is xvector')
     parser.add_argument('--num', type=int, default=48, help='number of job, default 48')
     args = parser.parse_args()
     

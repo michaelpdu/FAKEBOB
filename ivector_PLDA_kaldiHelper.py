@@ -21,6 +21,7 @@ class ivector_PLDA_kaldiHelper:
 
         self.pre_model_dir = os.path.abspath(pre_model_dir)
         self.conf_dir = os.path.join(self.pre_model_dir, "conf")
+
         audio_dir = audio_dir if audio_dir else "audio"
         self.audio_dir = os.path.abspath(audio_dir)
 
@@ -35,15 +36,15 @@ class ivector_PLDA_kaldiHelper:
 
         ''' deal with the protential permission issue
         '''
-        all_files = (self.get_all_files(self.pre_model_dir + "/utils") + 
-                     self.get_all_files(self.pre_model_dir + "/steps") + 
-                     self.get_all_files(self.pre_model_dir + "/sid"))
-            
-        for file in all_files:
-            change_permission_command = "chmod 777 " + file
-            args = shlex.split(change_permission_command)
-            p = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            p.wait()
+        # all_files = (self.get_all_files(self.pre_model_dir + "/utils") + 
+        #              self.get_all_files(self.pre_model_dir + "/steps") + 
+        #              self.get_all_files(self.pre_model_dir + "/sid"))
+        # 
+        # for file in all_files:
+        #     change_permission_command = "chmod 777 " + file
+        #     args = shlex.split(change_permission_command)
+        #     p = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        #     p.wait()
     
     def get_all_files(self, root_dir):
 
@@ -74,9 +75,9 @@ class ivector_PLDA_kaldiHelper:
 
     def data_prepare(self, audio_path_list, utt_id_list=None, spk_id_list=None, audio_dir=None, debug=False):
 
-        ''' generate wav.scp, utt2spk, spk2utt in audio_dir according to utt_id_list,
-            spk_id_list, audio_path_list. utt_id_list, spk_id_list, audio_path_list are
-            three list objects with the same len
+        ''' generate wav.scp, utt2spk, spk2utt in audio_dir according to utt_id_list, spk_id_list, audio_path_list. 
+            utt_id_list, spk_id_list, audio_path_list are three list objects with the same len.
+
             Note: if utt_id_list and spk_id_listis provided, both of them must be in sorted order, 
             otherwise, the returning scores may disorder
         '''

@@ -22,6 +22,7 @@ class xvector_PLDA_kaldiHelper:
 
         self.pre_model_dir = os.path.abspath(pre_model_dir)
         self.conf_dir = os.path.join(self.pre_model_dir, "conf")
+        
         audio_dir = audio_dir if audio_dir else "audio"
         self.audio_dir = os.path.abspath(audio_dir)
 

@@ -23,7 +23,7 @@ class UttVerifier:
     def verify_utt(self, utt_path):
         audio_list = []
         _, audio = read(utt_path)
-        audio = audio / (2 ** (bits_per_sample - 1))
+        audio = audio / (2 ** (bits_per_sample - 1)) # normalization from 32768 to 1.
         audio_list.append(audio)
         decisions, scores = self.model.make_decisions(audio_list, fs=fs, bits_per_sample=bits_per_sample, n_jobs=1, debug=self.debug)
         print('decisions:', decisions, ', scores:', scores)
